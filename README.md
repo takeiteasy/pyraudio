@@ -3,6 +3,11 @@
 > [!WARNING]
 > Work in progress
 
+## TODO:
+
+- [ ] Implement update function for all classes
+- [ ] Access to AudioStream struct from Music+Sound
+
 ## LICENSE
 ```
 MIT License

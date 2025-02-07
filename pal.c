@@ -70,7 +70,7 @@ static PyMappingMethods PalWave_mapping = {
     (lenfunc)PalWave_length, NULL, NULL
 };
 
-static PyObject* pywave_is_ready(PalWave *self, PyObject *args) {
+static PyObject* PalWave_is_ready(PalWave *self, PyObject *args) {
     if (IsWaveReady(self->wave)) {
         Py_RETURN_TRUE;
     } else {
@@ -78,7 +78,7 @@ static PyObject* pywave_is_ready(PalWave *self, PyObject *args) {
     }
 }
 
-static PyObject* pywave_export(PalWave *self, PyObject *args, PyObject *kwds) {
+static PyObject* PalWave_export(PalWave *self, PyObject *args, PyObject *kwds) {
     char *path = NULL;  // Initialize to NULL
     static char *kwlist[] = {"path", NULL}; // Keyword arguments
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|s", kwlist, &path)) {
@@ -92,7 +92,7 @@ static PyObject* pywave_export(PalWave *self, PyObject *args, PyObject *kwds) {
     Py_RETURN_TRUE;
 }
 
-static PyObject* pywave_copy(PalWave *self, PyObject *args, PyObject *kwds) {
+static PyObject* PalWave_copy(PalWave *self, PyObject *args, PyObject *kwds) {
     if (!IsWaveReady(self->wave)) {
         PyErr_SetString(PyExc_RuntimeError, "Cannot copy uninitialized Wave");
         return NULL;
@@ -131,7 +131,7 @@ static PyBufferProcs PalWave_as_buffer = {
   (releasebufferproc)0,
 };
 
-static PyObject* pywave_setpointer(PalWave *self, PyObject *original) {
+static PyObject* PalWave_setpointer(PalWave *self, PyObject *original) {
     Py_buffer buffer;
     if (PyObject_GetBuffer(original, &buffer, PyBUF_WRITABLE) == -1)
         return NULL;
@@ -141,7 +141,7 @@ static PyObject* pywave_setpointer(PalWave *self, PyObject *original) {
     return Py_BuildValue("d", 1);
 }
 
-static PyObject* pywave_samples(PalWave *self, PyObject *args) {
+static PyObject* PalWave_samples(PalWave *self, PyObject *args) {
     float *samples = LoadWaveSamples(self->wave);
     if (!samples)
         return PyErr_NoMemory();
@@ -175,7 +175,7 @@ static PyObject* pywave_samples(PalWave *self, PyObject *args) {
     return list;
 }
 
-static PyObject* pywave_crop(PalWave *self, PyObject *args) {
+static PyObject* PalWave_crop(PalWave *self, PyObject *args) {
     unsigned int initSample, finalSample;
     if (!PyArg_ParseTuple(args, "ii", &initSample, &finalSample)) {
         return NULL;
@@ -189,7 +189,7 @@ static PyObject* pywave_crop(PalWave *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pywave_format(PalWave *self, PyObject *args) {
+static PyObject* PalWave_format(PalWave *self, PyObject *args) {
     int sampleRate, sampleSize, channels;
     if (!PyArg_ParseTuple(args, "iii", &sampleRate, &sampleSize, &channels)) {
         return NULL;
@@ -203,13 +203,13 @@ static PyObject* pywave_format(PalWave *self, PyObject *args) {
 }
 
 static PyMethodDef PalWave_methods[] = {
-    {"is_ready", (PyCFunction)pywave_is_ready, METH_VARARGS, "Is Wave ready?"},
-    {"export", (PyCFunction)pywave_export, METH_VARARGS, "Export Wave to file"},
-    {"copy", (PyCFunction)pywave_copy, METH_VARARGS, "Clone a Wave object"},
-    {"crop", (PyCFunction)pywave_crop, METH_VARARGS, "Crop a Wave to defined samples range"},
-    {"format", (PyCFunction)pywave_format, METH_VARARGS, "Convert Wave data to desired format"},
-    {"from_buffer", (PyCFunction)pywave_setpointer, METH_O, "Set memory pointer from a buffer"},
-    {"samples", (PyCFunction)pywave_samples, METH_VARARGS, "Load samples data from wave as a floats array"},
+    {"is_ready", (PyCFunction)PalWave_is_ready, METH_VARARGS, "Is Wave ready?"},
+    {"export", (PyCFunction)PalWave_export, METH_VARARGS, "Export Wave to file"},
+    {"copy", (PyCFunction)PalWave_copy, METH_VARARGS, "Clone a Wave object"},
+    {"crop", (PyCFunction)PalWave_crop, METH_VARARGS, "Crop a Wave to defined samples range"},
+    {"format", (PyCFunction)PalWave_format, METH_VARARGS, "Convert Wave data to desired format"},
+    {"from_buffer", (PyCFunction)PalWave_setpointer, METH_O, "Set memory pointer from a buffer"},
+    {"samples", (PyCFunction)PalWave_samples, METH_VARARGS, "Load samples data from wave as a floats array"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -278,24 +278,162 @@ static PyTypeObject PalWaveType = {
     (newfunc)PalWave_New,                       /* tp_new */
 };
 
-// typedef struct AudioStream {
-//    rAudioBuffer *buffer;       // Pointer to internal data used by the audio system
-//    rAudioProcessor *processor; // Pointer to internal data processor, useful for audio effects
-
-//    unsigned int sampleRate;    // Frequency (samples per second)
-//    unsigned int sampleSize;    // Bit depth (bits per sample): 8, 16, 32 (24 not supported)
-//    unsigned int channels;      // Number of channels (1-mono, 2-stereo, ...)
-// } AudioStream;
-
 typedef struct {
     PyObject_HEAD
     AudioStream stream;
 } PalAudioStream;
 
+static int PalAudioStream_Init(PalAudioStream *self, PyObject *args, PyObject *kwds) {
+    unsigned int sampleRate, sampleSize, channels;
+    if (!PyArg_ParseTuple(args, "iii", &sampleRate, &sampleSize, &channels)) {
+        PyErr_SetString(PyExc_ValueError, "Invalid parameters");
+        return -1;
+    }
+    self->stream = LoadAudioStream(sampleRate, sampleSize, channels);
+    if (!IsAudioStreamReady(self->stream))
+        return -1;
+    return 0;
+}
+
+static PyObject* PalAudioStream_New(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    PalAudioStream* self = (PalAudioStream*)type->tp_alloc(type, 0);
+    if (!self)
+        return PyErr_NoMemory();
+    memset(&self->stream, 0, sizeof(AudioStream));
+    return (PyObject*)self;
+}
+
+static void PalAudioStream_Dealloc(PalAudioStream* self) {
+    if (IsAudioStreamReady(self->stream))
+        UnloadAudioStream(self->stream);
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static PyObject* PalAudioStream_is_ready(PalAudioStream *self, PyObject *args) {
+    if (IsAudioStreamReady(self->stream)) {
+        Py_RETURN_TRUE;
+    } else {
+        Py_RETURN_FALSE;
+    }
+}
+
+static PyObject* PalAudioStream_play(PalAudioStream *self, PyObject *args) {
+    if (!IsAudioStreamReady(self->stream)) {
+        PyErr_SetString(PyExc_RuntimeError, "AudioStream is not ready");
+        return NULL;
+    }
+    PlayAudioStream(self->stream);
+    Py_RETURN_NONE;
+}
+
+static PyObject* PalAudioStream_stop(PalAudioStream *self, PyObject *args) {
+    if (!IsAudioStreamReady(self->stream)) {
+        PyErr_SetString(PyExc_RuntimeError, "AudioStream is not ready");
+        return NULL;
+    }
+    StopAudioStream(self->stream);
+    Py_RETURN_NONE;
+}
+
+static PyObject* PalAudioStream_pause(PalAudioStream *self, PyObject *args) {
+    if (!IsAudioStreamReady(self->stream)) {
+        PyErr_SetString(PyExc_RuntimeError, "AudioStream is not ready");
+        return NULL;
+    }
+    PauseAudioStream(self->stream);
+    Py_RETURN_NONE;
+}
+
+static PyObject* PalAudioStream_resume(PalAudioStream *self, PyObject *args) {
+    if (!IsAudioStreamReady(self->stream)) {
+        PyErr_SetString(PyExc_RuntimeError, "AudioStream is not ready");
+        return NULL;
+    }
+    ResumeAudioStream(self->stream);
+    Py_RETURN_NONE;
+}
+
+static PyObject* PalAudioStream_is_playing(PalAudioStream *self, PyObject *args) {
+    if (!IsAudioStreamReady(self->stream)) {
+        PyErr_SetString(PyExc_RuntimeError, "AudioStream is not ready");
+        return NULL;
+    }
+    if (IsAudioStreamPlaying(self->stream)) {
+        Py_RETURN_TRUE;
+    } else {
+        Py_RETURN_FALSE;
+    }
+}
+
+static PyMethodDef PalAudioStream_methods[] = {
+    {"is_ready", (PyCFunction)PalAudioStream_is_ready, METH_VARARGS, "Is AudioStream ready?"},
+//    {"update", (PyCFunction)PalAudioStream_update, METH_VARARGS, "Update AudioStream buffer with new data"},
+    {"play", (PyCFunction)PalAudioStream_play, METH_VARARGS, "Play a AudioStream" },
+    {"stop", (PyCFunction)PalAudioStream_stop, METH_VARARGS, "Stop playing a AudioStream" },
+    {"pause", (PyCFunction)PalAudioStream_pause, METH_VARARGS, "Pause a AudioStream" },
+    {"resume", (PyCFunction)PalAudioStream_resume, METH_VARARGS, "Resume a paused AudioStream" },
+    {"is_playing", (PyCFunction)PalAudioStream_is_playing, METH_VARARGS, "Check if a AudioStream is currently playing" },
+    {NULL, NULL, 0, NULL}
+};
+
+static PyObject* PalAudioStream_get_sample_rate(PalAudioStream *self, void *closure) {
+    return PyLong_FromUnsignedLong(self->stream.sampleRate);
+}
+
+static PyObject* PalAudioStream_get_sample_size(PalAudioStream *self, void *closure) {
+    return PyLong_FromUnsignedLong(self->stream.sampleSize);
+}
+
+static PyObject* PalAudioStream_get_channels(PalAudioStream *self, void *closure) {
+    return PyLong_FromUnsignedLong(self->stream.channels);
+}
+
+static PyGetSetDef PalAudioStream_attrs[] = {
+    {"sample_rate", (getter)PalAudioStream_get_sample_rate, NULL, "AudioStream sample rate", NULL},
+    {"sample_size", (getter)PalAudioStream_get_sample_size, NULL, "AudioStream sample size", NULL},
+    {"channels", (getter)PalAudioStream_get_channels, NULL, "AudioStream channels", NULL},
+    {NULL}
+};
+
 static PyTypeObject PalAudioStreamType = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "pal.AudioStream",                                 /* tp_name */
-    sizeof(PalAudioStream),                            /* tp_basicsize */
+    "pal.AudioStream",                          /* tp_name */
+    sizeof(PalAudioStream),                     /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    (destructor)PalAudioStream_Dealloc,         /* tp_dealloc */
+    0,                                          /* tp_vectorcall_offset */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_as_async */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    PyDoc_STR("PalAudioStream object"),         /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    PalAudioStream_methods,                     /* tp_methods */
+    0,                                          /* tp_members */
+    PalAudioStream_attrs,                       /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    (initproc)PalAudioStream_Init,              /* tp_init */
+    0,                                          /* tp_alloc */
+    (newfunc)PalAudioStream_New,                /* tp_new */
 };
 
 typedef struct {
@@ -374,7 +512,7 @@ static PyMappingMethods PalSound_mapping = {
     (lenfunc)PalSound_length, NULL, NULL
 };
 
-static PyObject* pysound_is_ready(PalSound *self, PyObject *args) {
+static PyObject* PalSound_is_ready(PalSound *self, PyObject *args) {
     if (IsSoundReady(self->sound)) {
         Py_RETURN_TRUE;
     } else {
@@ -382,7 +520,7 @@ static PyObject* pysound_is_ready(PalSound *self, PyObject *args) {
     }
 }
 
-static PyObject* pysound_play(PalSound *self, PyObject *args) {
+static PyObject* PalSound_play(PalSound *self, PyObject *args) {
     if (!IsSoundReady(self->sound)) {
         PyErr_SetString(PyExc_RuntimeError, "Sound is not ready");
         return NULL;
@@ -391,7 +529,7 @@ static PyObject* pysound_play(PalSound *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pysound_stop(PalSound *self, PyObject *args) {
+static PyObject* PalSound_stop(PalSound *self, PyObject *args) {
     if (!IsSoundReady(self->sound)) {
         PyErr_SetString(PyExc_RuntimeError, "Sound is not ready");
         return NULL;
@@ -400,7 +538,7 @@ static PyObject* pysound_stop(PalSound *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pysound_pause(PalSound *self, PyObject *args) {
+static PyObject* PalSound_pause(PalSound *self, PyObject *args) {
     if (!IsSoundReady(self->sound)) {
         PyErr_SetString(PyExc_RuntimeError, "Sound is not ready");
         return NULL;
@@ -409,7 +547,7 @@ static PyObject* pysound_pause(PalSound *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pysound_resume(PalSound *self, PyObject *args) {
+static PyObject* PalSound_resume(PalSound *self, PyObject *args) {
     if (!IsSoundReady(self->sound)) {
         PyErr_SetString(PyExc_RuntimeError, "Sound is not ready");
         return NULL;
@@ -418,7 +556,7 @@ static PyObject* pysound_resume(PalSound *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pysound_is_playing(PalSound *self, PyObject *args) {
+static PyObject* PalSound_is_playing(PalSound *self, PyObject *args) {
     if (!IsSoundReady(self->sound)) {
         PyErr_SetString(PyExc_RuntimeError, "Sound is not ready");
         return NULL;
@@ -431,13 +569,13 @@ static PyObject* pysound_is_playing(PalSound *self, PyObject *args) {
 }
 
 static PyMethodDef PalSound_methods[] = {
-    {"is_ready", (PyCFunction)pysound_is_ready, METH_VARARGS, "Is Sound ready?"},
-//    {"update", (PyCFunction)pysound_update, METH_VARARGS, "Update Sound buffer with new data"},
-    {"play", (PyCFunction)pysound_play, METH_VARARGS, "Play a Sound" },
-    {"stop", (PyCFunction)pysound_stop, METH_VARARGS, "Stop playing a Sound" },
-    {"pause", (PyCFunction)pysound_pause, METH_VARARGS, "Pause a Sound" },
-    {"resume", (PyCFunction)pysound_resume, METH_VARARGS, "Resume a paused Sound" },
-    {"is_playing", (PyCFunction)pysound_is_playing, METH_VARARGS, "Check if a Sound is currently playing" },
+    {"is_ready", (PyCFunction)PalSound_is_ready, METH_VARARGS, "Is Sound ready?"},
+//    {"update", (PyCFunction)PalSound_update, METH_VARARGS, "Update Sound buffer with new data"},
+    {"play", (PyCFunction)PalSound_play, METH_VARARGS, "Play a Sound" },
+    {"stop", (PyCFunction)PalSound_stop, METH_VARARGS, "Stop playing a Sound" },
+    {"pause", (PyCFunction)PalSound_pause, METH_VARARGS, "Pause a Sound" },
+    {"resume", (PyCFunction)PalSound_resume, METH_VARARGS, "Resume a paused Sound" },
+    {"is_playing", (PyCFunction)PalSound_is_playing, METH_VARARGS, "Check if a Sound is currently playing" },
     {NULL, NULL, 0, NULL}
 };
 
@@ -445,11 +583,11 @@ static PyObject* PalSound_get_frame_count(PalSound *self, void *closure) {
     return PyLong_FromLong(self->sound.frameCount);
 }
 
-static PyObject* pysound_get_volume(PalSound *self, void *closure) {
+static PyObject* PalSound_get_volume(PalSound *self, void *closure) {
     return PyObject_GetAttrString((PyObject*)self, "_volume");
 }
 
-static int pysound_set_volume(PalSound *self, PyObject *value, void *closure) {
+static int PalSound_set_volume(PalSound *self, PyObject *value, void *closure) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'volume' attribute");
         return -1;
@@ -462,11 +600,11 @@ static int pysound_set_volume(PalSound *self, PyObject *value, void *closure) {
     return 0;
 }
 
-static PyObject* pysound_get_pitch(PalSound *self, void *closure) {
+static PyObject* PalSound_get_pitch(PalSound *self, void *closure) {
     return PyObject_GetAttrString((PyObject*)self, "_pitch");
 }
 
-static int pysound_set_pitch(PalSound *self, PyObject *value, void *closure) {
+static int PalSound_set_pitch(PalSound *self, PyObject *value, void *closure) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pitch' attribute");
         return -1;
@@ -479,11 +617,11 @@ static int pysound_set_pitch(PalSound *self, PyObject *value, void *closure) {
     return 0;
 }
 
-static PyObject* pysound_get_pan(PalSound *self, void *closure) {
+static PyObject* PalSound_get_pan(PalSound *self, void *closure) {
     return PyObject_GetAttrString((PyObject*)self, "_pan");
 }
 
-static int pysound_set_pan(PalSound *self, PyObject *value, void *closure) {
+static int PalSound_set_pan(PalSound *self, PyObject *value, void *closure) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pan' attribute");
         return -1;
@@ -498,9 +636,9 @@ static int pysound_set_pan(PalSound *self, PyObject *value, void *closure) {
 
 static PyGetSetDef PalSound_attrs[] = {
     {"frame_count", (getter)PalSound_get_frame_count, NULL, "Total number of frames (considering channels)", NULL},
-    {"volume", (getter)pysound_get_volume, (setter)pysound_set_volume, "Sound volume", NULL},
-    {"pitch", (getter)pysound_get_pitch, (setter)pysound_set_pitch, "Sound pitch", NULL},
-    {"pan", (getter)pysound_get_pan, (setter)pysound_set_pan, "Sound pan", NULL},
+    {"volume", (getter)PalSound_get_volume, (setter)PalSound_set_volume, "Sound volume", NULL},
+    {"pitch", (getter)PalSound_get_pitch, (setter)PalSound_set_pitch, "Sound pitch", NULL},
+    {"pan", (getter)PalSound_get_pan, (setter)PalSound_set_pan, "Sound pan", NULL},
     {NULL}
 };
 
@@ -546,15 +684,6 @@ static PyTypeObject PalSoundType = {
 };
 
 // Music, audio stream, anything longer than ~10 seconds should be streamed
-// typedef struct Music {
-//    AudioStream stream;         // Audio stream
-//    unsigned int frameCount;    // Total number of frames (considering channels)
-//    bool looping;               // Music looping enable
-
-//    int ctxType;                // Type of music context (audio filetype)
-//    void *ctxData;              // Audio context data, depends on type
-// } Music;
-
 typedef struct {
     PyObject_HEAD
     Music music;
@@ -604,7 +733,7 @@ static PyMappingMethods PalMusic_mapping = {
     (lenfunc)PalMusic_length, NULL, NULL
 };
 
-static PyObject* pymusic_is_ready(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_is_ready(PalMusic *self, PyObject *args) {
     if (IsMusicReady(self->music)) {
         Py_RETURN_TRUE;
     } else {
@@ -612,7 +741,7 @@ static PyObject* pymusic_is_ready(PalMusic *self, PyObject *args) {
     }
 }
 
-static PyObject* pymusic_play(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_play(PalMusic *self, PyObject *args) {
     if (!IsMusicReady(self->music)) {
         PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
         return NULL;
@@ -621,7 +750,7 @@ static PyObject* pymusic_play(PalMusic *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pymusic_stop(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_stop(PalMusic *self, PyObject *args) {
     if (!IsMusicReady(self->music)) {
         PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
         return NULL;
@@ -630,7 +759,7 @@ static PyObject* pymusic_stop(PalMusic *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pymusic_pause(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_pause(PalMusic *self, PyObject *args) {
     if (!IsMusicReady(self->music)) {
         PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
         return NULL;
@@ -639,7 +768,7 @@ static PyObject* pymusic_pause(PalMusic *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pymusic_resume(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_resume(PalMusic *self, PyObject *args) {
     if (!IsMusicReady(self->music)) {
         PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
         return NULL;
@@ -648,7 +777,7 @@ static PyObject* pymusic_resume(PalMusic *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
-static PyObject* pymusic_is_playing(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_is_playing(PalMusic *self, PyObject *args) {
     if (!IsMusicReady(self->music)) {
         PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
         return NULL;
@@ -660,7 +789,7 @@ static PyObject* pymusic_is_playing(PalMusic *self, PyObject *args) {
     }
 }
 
-static PyObject* pymusic_seek(PalMusic *self, PyObject *args) {
+static PyObject* PalMusic_seek(PalMusic *self, PyObject *args) {
     if (!IsMusicReady(self->music)) {
         PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
         return NULL;
@@ -677,14 +806,14 @@ static PyObject* pymusic_seek(PalMusic *self, PyObject *args) {
 }
 
 static PyMethodDef PalMusic_methods[] = {
-    {"is_ready", (PyCFunction)pymusic_is_ready, METH_VARARGS, "Is Music ready?"},
-//    {"update", (PyCFunction)pymusic_update, METH_VARARGS, "Update Music buffer with new data"},
-    {"play", (PyCFunction)pymusic_play, METH_VARARGS, "Play a Music" },
-    {"stop", (PyCFunction)pymusic_stop, METH_VARARGS, "Stop playing a Music" },
-    {"pause", (PyCFunction)pymusic_pause, METH_VARARGS, "Pause a Music" },
-    {"resume", (PyCFunction)pymusic_resume, METH_VARARGS, "Resume a paused Music" },
-    {"seek", (PyCFunction)pymusic_seek, METH_VARARGS, "Seek Music to a position (in seconds)" },
-    {"is_playing", (PyCFunction)pymusic_is_playing, METH_VARARGS, "Check if a Music is currently playing" },
+    {"is_ready", (PyCFunction)PalMusic_is_ready, METH_VARARGS, "Is Music ready?"},
+//    {"update", (PyCFunction)PalMusic_update, METH_VARARGS, "Update Music buffer with new data"},
+    {"play", (PyCFunction)PalMusic_play, METH_VARARGS, "Play a Music" },
+    {"stop", (PyCFunction)PalMusic_stop, METH_VARARGS, "Stop playing a Music" },
+    {"pause", (PyCFunction)PalMusic_pause, METH_VARARGS, "Pause a Music" },
+    {"resume", (PyCFunction)PalMusic_resume, METH_VARARGS, "Resume a paused Music" },
+    {"seek", (PyCFunction)PalMusic_seek, METH_VARARGS, "Seek Music to a position (in seconds)" },
+    {"is_playing", (PyCFunction)PalMusic_is_playing, METH_VARARGS, "Check if a Music is currently playing" },
     {NULL, NULL, 0, NULL}
 };
 
@@ -692,11 +821,11 @@ static PyObject* PalMusic_get_frame_count(PalMusic *self, void *closure) {
     return PyLong_FromLong(self->music.frameCount);
 }
 
-static PyObject* pymusic_get_volume(PalMusic *self, void *closure) {
+static PyObject* PalMusic_get_volume(PalMusic *self, void *closure) {
     return PyObject_GetAttrString((PyObject*)self, "_volume");
 }
 
-static int pymusic_set_volume(PalMusic *self, PyObject *value, void *closure) {
+static int PalMusic_set_volume(PalMusic *self, PyObject *value, void *closure) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'volume' attribute");
         return -1;
@@ -709,11 +838,11 @@ static int pymusic_set_volume(PalMusic *self, PyObject *value, void *closure) {
     return 0;
 }
 
-static PyObject* pymusic_get_pitch(PalMusic *self, void *closure) {
+static PyObject* PalMusic_get_pitch(PalMusic *self, void *closure) {
     return PyObject_GetAttrString((PyObject*)self, "_pitch");
 }
 
-static int pymusic_set_pitch(PalMusic *self, PyObject *value, void *closure) {
+static int PalMusic_set_pitch(PalMusic *self, PyObject *value, void *closure) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pitch' attribute");
         return -1;
@@ -726,11 +855,11 @@ static int pymusic_set_pitch(PalMusic *self, PyObject *value, void *closure) {
     return 0;
 }
 
-static PyObject* pymusic_get_pan(PalMusic *self, void *closure) {
+static PyObject* PalMusic_get_pan(PalMusic *self, void *closure) {
     return PyObject_GetAttrString((PyObject*)self, "_pan");
 }
 
-static int pymusic_set_pan(PalMusic *self, PyObject *value, void *closure) {
+static int PalMusic_set_pan(PalMusic *self, PyObject *value, void *closure) {
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pan' attribute");
         return -1;
@@ -743,15 +872,14 @@ static int pymusic_set_pan(PalMusic *self, PyObject *value, void *closure) {
     return 0;
 }
 
-static PyObject* pymusic_get_position(PalMusic *self, void *closure) {
+static PyObject* PalMusic_get_position(PalMusic *self, void *closure) {
     PyObject *obj = PyFloat_FromDouble(IsMusicReady(self->music) ? GetMusicTimePlayed(self->music) : 0.0);
     if (!obj)
         return PyErr_NoMemory();
-    Py_DECREF(obj);
     return obj;
 }
 
-static int pymusic_set_position(PalMusic *self, PyObject *value, void *closure) {
+static int PalMusic_set_position(PalMusic *self, PyObject *value, void *closure) {
     if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'position' attribute");
         return -1;
@@ -762,7 +890,7 @@ static int pymusic_set_position(PalMusic *self, PyObject *value, void *closure) 
     return 0;
 }
 
-static PyObject* pymusic_get_looping(PalMusic *self, void *closure) {
+static PyObject* PalMusic_get_looping(PalMusic *self, void *closure) {
     if (self->music.looping) {
         Py_RETURN_TRUE;
     } else {
@@ -770,7 +898,7 @@ static PyObject* pymusic_get_looping(PalMusic *self, void *closure) {
     }
 }
 
-static int pymusic_set_looping(PalMusic *self, PyObject *value, void *closure) {
+static int PalMusic_set_looping(PalMusic *self, PyObject *value, void *closure) {
     if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'loop' attribute");
         return -1;
@@ -786,11 +914,11 @@ static int pymusic_set_looping(PalMusic *self, PyObject *value, void *closure) {
 
 static PyGetSetDef PalMusic_attrs[] = {
     {"frame_count", (getter)PalMusic_get_frame_count, NULL, "Total number of frames (considering channels)", NULL},
-    {"volume", (getter)pymusic_get_volume, (setter)pymusic_set_volume, "Music volume", NULL},
-    {"pitch", (getter)pymusic_get_pitch, (setter)pymusic_set_pitch, "Music pitch", NULL},
-    {"pan", (getter)pymusic_get_pan, (setter)pymusic_set_pan, "Music pan", NULL},
-    {"position", (getter)pymusic_get_position, (setter)pymusic_set_position, "Music position", NULL},
-    {"loop", (getter)pymusic_get_looping, (setter)pymusic_set_looping, "Music looping", NULL},
+    {"volume", (getter)PalMusic_get_volume, (setter)PalMusic_set_volume, "Music volume", NULL},
+    {"pitch", (getter)PalMusic_get_pitch, (setter)PalMusic_set_pitch, "Music pitch", NULL},
+    {"pan", (getter)PalMusic_get_pan, (setter)PalMusic_set_pan, "Music pan", NULL},
+    {"position", (getter)PalMusic_get_position, (setter)PalMusic_set_position, "Music position", NULL},
+    {"loop", (getter)PalMusic_get_looping, (setter)PalMusic_set_looping, "Music looping", NULL},
     {NULL}
 };
 
