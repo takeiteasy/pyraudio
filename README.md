@@ -6,7 +6,7 @@
 ## TODO:
 
 - [X] Implement update function for all classes
-- [ ] Access to AudioStream struct from Music+Sound
+- [X] Access to AudioStream struct from Music+Sound
 - [ ] AudioStream processor callbacks
 
 ## LICENSE

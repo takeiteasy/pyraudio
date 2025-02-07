@@ -398,7 +398,7 @@ typedef struct {
 
 static int PalSound_Init(PalSound *self, PyObject *args, PyObject *kwds) {
     PyObject *source = NULL;  // Could be a string or a Wave object
-    static char *kwlist[] = {"source", "path", NULL};
+    static char *kwlist[] = {"path", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|O", kwlist, &source, NULL)) // "O|O" for optional object
         return -1;
     if (!source) {
@@ -598,11 +598,29 @@ static int PalSound_set_pan(PalSound *self, PyObject *value, void *closure) {
     return 0;
 }
 
+static PyObject* PalSound_get_stream(PalSound *self, void *closure) {
+    PalAudioStream *stream = (PyObject*)PalAudioStream.tp_alloc(&PalAudioStreamType, 0);
+    if (!stream)
+        return PyErr_NoMemory();
+    memcpy(&self->sound.stream, &stream->stream, sizeof(AudioStream));
+    return (PyObject*)stream;
+}
+
+static int PalSound_set_stream(PalSound *self, PyObject *value, void *closure) {
+    PalAudioStream *stream = (PalAudioStream*)source;
+    if (!PyObject_TypeCheck(value, &PalAudioStreamType))
+        return -1;
+    memcpy(&stream->stream, &self->sound.stream, sizeof(AudioStream));
+    Py_DECREF(stream);
+    return 0;
+}
+
 static PyGetSetDef PalSound_attrs[] = {
     {"frame_count", (getter)PalSound_get_frame_count, NULL, "Total number of frames (considering channels)", NULL},
     {"volume", (getter)PalSound_get_volume, (setter)PalSound_set_volume, "Sound volume", NULL},
     {"pitch", (getter)PalSound_get_pitch, (setter)PalSound_set_pitch, "Sound pitch", NULL},
     {"pan", (getter)PalSound_get_pan, (setter)PalSound_set_pan, "Sound pan", NULL},
+    {"stream", (getter)PalSound_get_stream, (setter)PalSound_set_stream, "AudioStream object", NULL},
     {NULL}
 };
 
@@ -858,6 +876,23 @@ static int PalMusic_set_looping(PalMusic *self, PyObject *value, void *closure) 
     return 0;
 }
 
+static PyObject* PalMusic_get_stream(PalMusic *self, void *closure) {
+    PalAudioStream *stream = (PyObject*)PalAudioStream.tp_alloc(&PalAudioStreamType, 0);
+    if (!stream)
+        return PyErr_NoMemory();
+    memcpy(&self->music.stream, &stream->stream, sizeof(AudioStream));
+    return (PyObject*)stream;
+}
+
+static int PalMusic_set_stream(PalMusic *self, PyObject *value, void *closure) {
+    PalAudioStream *stream = (PalAudioStream*)source;
+    if (!PyObject_TypeCheck(value, &PalAudioStreamType))
+        return -1;
+    memcpy(&stream->stream, &self->music.stream, sizeof(AudioStream));
+    Py_DECREF(stream);
+    return 0;
+}
+
 static PyGetSetDef PalMusic_attrs[] = {
     {"frame_count", (getter)PalMusic_get_frame_count, NULL, "Total number of frames (considering channels)", NULL},
     {"volume", (getter)PalMusic_get_volume, (setter)PalMusic_set_volume, "Music volume", NULL},
@@ -865,6 +900,7 @@ static PyGetSetDef PalMusic_attrs[] = {
     {"pan", (getter)PalMusic_get_pan, (setter)PalMusic_set_pan, "Music pan", NULL},
     {"position", (getter)PalMusic_get_position, (setter)PalMusic_set_position, "Music position", NULL},
     {"loop", (getter)PalMusic_get_looping, (setter)PalMusic_set_looping, "Music looping", NULL},
+    {"stream", (getter)PalMusic_get_stream, (setter)PalMusic_set_stream, "AudioStream object", NULL},
     {NULL}
 };
 
