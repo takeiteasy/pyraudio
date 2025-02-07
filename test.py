@@ -1,9 +1,20 @@
-from esc2esc import wait2escape
+from signal import signal, SIGINT
+from sys import exit
 import pal
 
-pal.initialize()
+def hndl(_, __):
+    exit(0)
 
-while wait2escape():
-    print(pal.is_ready())
+pal.initialize()
+assert(pal.is_ready())
+music = pal.Music(path="country.mp3")
+assert(music.is_ready())
+music.play()
+
+signal(SIGINT, hndl)
+
+print("Press CTRL+C to interrupt...")
+while True:
+    music.update()
 
 pal.shutdown()

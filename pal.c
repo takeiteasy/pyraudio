@@ -34,25 +34,11 @@ static int PalWave_Init(PalWave *self, PyObject *args, PyObject *kwds) {
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|s", kwlist, &path))
         return -1;
     if (path) {
-        PyObject *path_obj = PyUnicode_FromString(path);
-        if (PyObject_SetAttrString((PyObject*)self, "path", path_obj) < 0) {
-            Py_DECREF(path_obj);
-            return -1;
-        }
-        Py_DECREF(path_obj);
         self->wave = LoadWave(path);
         if (!IsWaveReady(self->wave))
             return -1;
     }
     return 0;
-}
-
-static PyObject* PalWave_New(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    PalWave* self = (PalWave*)type->tp_alloc(type, 0);
-    if (!self)
-        return PyErr_NoMemory();
-    memset(&self->wave, 0, sizeof(Wave));
-    return (PyObject*)self;
 }
 
 static void PalWave_Dealloc(PalWave* self) {
@@ -106,7 +92,7 @@ static PyObject* PalWave_copy(PalWave *self, PyObject *args, PyObject *kwds) {
 }
 
 static int PalWave_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-    if (view == NULL) {
+    if (!view) {
         PyErr_SetString(PyExc_ValueError, "NULL view in getbuffer");
         return -1;
     }
@@ -147,14 +133,14 @@ static PyObject* PalWave_samples(PalWave *self, PyObject *args) {
         return PyErr_NoMemory();
     int length = self->wave.frameCount * self->wave.channels;
     PyObject *list = PyList_New(length);  // Create a new Python list
-    if (list == NULL) {
+    if (!list) {
         free(samples);
         return PyErr_NoMemory();
     }
     
     for (int i = 0; i < length; i++) {
         PyObject *float_obj = PyFloat_FromDouble((double)samples[i]);
-        if (float_obj == NULL) {
+        if (!float_obj) {
             for (int j = 0; j < i; j++)
                 Py_DECREF(PyList_GetItem(list,j));
             Py_DECREF(list);
@@ -249,7 +235,8 @@ static PyTypeObject PalWaveType = {
     .tp_methods = PalWave_methods,
     .tp_getset = PalWave_attrs,
     .tp_init = (initproc)PalWave_Init,
-    .tp_new = (newfunc)PalWave_New,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_new = PyType_GenericNew,
 };
 
 typedef struct {
@@ -267,14 +254,6 @@ static int PalAudioStream_Init(PalAudioStream *self, PyObject *args, PyObject *k
     if (!IsAudioStreamReady(self->stream))
         return -1;
     return 0;
-}
-
-static PyObject* PalAudioStream_New(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    PalAudioStream* self = (PalAudioStream*)type->tp_alloc(type, 0);
-    if (!self)
-        return PyErr_NoMemory();
-    memset(&self->stream, 0, sizeof(AudioStream));
-    return (PyObject*)self;
 }
 
 static void PalAudioStream_Dealloc(PalAudioStream* self) {
@@ -388,12 +367,16 @@ static PyTypeObject PalAudioStreamType = {
     .tp_methods = PalAudioStream_methods,
     .tp_getset = PalAudioStream_attrs,
     .tp_init = (initproc)PalAudioStream_Init,
-    .tp_new = (newfunc)PalAudioStream_New,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_new = PyType_GenericNew,
 };
 
 typedef struct {
     PyObject_HEAD
     Sound sound;
+    double volume;
+    double pitch;
+    double pan;
 } PalSound;
 
 static int PalSound_Init(PalSound *self, PyObject *args, PyObject *kwds) {
@@ -408,7 +391,7 @@ static int PalSound_Init(PalSound *self, PyObject *args, PyObject *kwds) {
     
     if (PyUnicode_Check(source)) {
         const char *path = PyUnicode_AsUTF8(source);
-        if (path == NULL)
+        if (!path)
             return -1;
         self->sound = LoadSound(path);
         if (!IsSoundReady(self->sound))
@@ -422,34 +405,10 @@ static int PalSound_Init(PalSound *self, PyObject *args, PyObject *kwds) {
         PyErr_SetString(PyExc_TypeError, "Source must be a path (string) or a Wave object");
         return -1;
     }
+    self->volume = 1.0;
+    self->pitch = 1.0;
+    self->pan = 0.5;
     return 0;
-}
-
-#define SET_ATTR(NAME, DEF_VAL) \
-do { \
-    PyObject *obj = PyFloat_FromDouble(DEF_VAL); \
-    if (!obj) { \
-        Py_XDECREF(obj); \
-        Py_DECREF(self); \
-        return PyErr_NoMemory(); \
-    } \
-    if (PyObject_SetAttrString((PyObject*)self, #NAME, obj) < 0) { \
-        Py_DECREF(obj); \
-        Py_DECREF(self); \
-        return NULL; \
-    } \
-    Py_DECREF(obj); \
-} while (0)
-
-static PyObject* PalSound_New(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    PalSound* self = (PalSound*)type->tp_alloc(type, 0);
-    if (!self)
-        return PyErr_NoMemory();
-    memset(&self->sound, 0, sizeof(Sound));
-    SET_ATTR(_volume, 1.0);
-    SET_ATTR(_pitch, 1.0);
-    SET_ATTR(_pan, 1.0);
-    return (PyObject*)self;
 }
 
 static void PalSound_Dealloc(PalSound* self) {
@@ -548,53 +507,53 @@ static PyObject* PalSound_get_frame_count(PalSound *self, void *closure) {
 }
 
 static PyObject* PalSound_get_volume(PalSound *self, void *closure) {
-    return PyObject_GetAttrString((PyObject*)self, "_volume");
+    return PyFloat_FromDouble(self->volume);
 }
 
 static int PalSound_set_volume(PalSound *self, PyObject *value, void *closure) {
-    if (value == NULL) {
+    if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'volume' attribute");
         return -1;
     }
     double vol = PyFloat_AsDouble(value);
-    if (PyErr_Occurred() != NULL)
+    if (PyErr_Occurred())
         return -1;
-    PyObject_SetAttrString((PyObject*)self, "_volume", value);
+    self->volume = vol;
     SetSoundVolume(self->sound, (float)vol);
     return 0;
 }
 
 static PyObject* PalSound_get_pitch(PalSound *self, void *closure) {
-    return PyObject_GetAttrString((PyObject*)self, "_pitch");
+    return PyFloat_FromDouble(self->pitch);
 }
 
 static int PalSound_set_pitch(PalSound *self, PyObject *value, void *closure) {
-    if (value == NULL) {
+    if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pitch' attribute");
         return -1;
     }
-    double vol = PyFloat_AsDouble(value);
-    if (PyErr_Occurred() != NULL)
+    double pitch = PyFloat_AsDouble(value);
+    if (PyErr_Occurred())
         return -1;
-    PyObject_SetAttrString((PyObject*)self, "_pitch", value);
-    SetSoundVolume(self->sound, (float)vol);
+    self->pitch = pitch;
+    SetSoundPitch(self->sound, (float)pitch);
     return 0;
 }
 
 static PyObject* PalSound_get_pan(PalSound *self, void *closure) {
-    return PyObject_GetAttrString((PyObject*)self, "_pan");
+    return PyFloat_FromDouble(self->pan);
 }
 
 static int PalSound_set_pan(PalSound *self, PyObject *value, void *closure) {
-    if (value == NULL) {
+    if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pan' attribute");
         return -1;
     }
-    double vol = PyFloat_AsDouble(value);
-    if (PyErr_Occurred() != NULL)
+    double pan = PyFloat_AsDouble(value);
+    if (PyErr_Occurred())
         return -1;
-    PyObject_SetAttrString((PyObject*)self, "_pan", value);
-    SetSoundVolume(self->sound, (float)vol);
+    self->pan = pan;
+    SetSoundPan(self->sound, (float)pan);
     return 0;
 }
 
@@ -635,13 +594,17 @@ static PyTypeObject PalSoundType = {
     .tp_methods = PalSound_methods,
     .tp_getset = PalSound_attrs,
     .tp_init = (initproc)PalSound_Init,
-    .tp_new = (newfunc)PalSound_New,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_new = PyType_GenericNew,
 };
 
 // Music, audio stream, anything longer than ~10 seconds should be streamed
 typedef struct {
     PyObject_HEAD
     Music music;
+    double volume;
+    double pitch;
+    double pan;
 } PalMusic;
 
 static int PalMusic_Init(PalMusic *self, PyObject *args, PyObject *kwds) {
@@ -650,28 +613,14 @@ static int PalMusic_Init(PalMusic *self, PyObject *args, PyObject *kwds) {
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|s", kwlist, &path))
         return -1;
     if (path) {
-        PyObject *path_obj = PyUnicode_FromString(path);
-        if (PyObject_SetAttrString((PyObject*)self, "path", path_obj) < 0) {
-            Py_DECREF(path_obj);
-            return -1;
-        }
-        Py_DECREF(path_obj);
         self->music = LoadMusicStream(path);
         if (!IsMusicReady(self->music))
             return -1;
     }
+    self->volume = 1.0;
+    self->pitch = 1.0;
+    self->pan = 0.5;
     return 0;
-}
-
-static PyObject* PalMusic_New(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    PalMusic* self = (PalMusic*)type->tp_alloc(type, 0);
-    if (!self)
-        return PyErr_NoMemory();
-    memset(&self->music, 0, sizeof(Music));
-    SET_ATTR(volume, 1.0);
-    SET_ATTR(pitch, 1.0);
-    SET_ATTR(pan, 1.0);
-    return (PyObject*)self;
 }
 
 static void PalMusic_Dealloc(PalMusic* self) {
@@ -786,53 +735,53 @@ static PyObject* PalMusic_get_frame_count(PalMusic *self, void *closure) {
 }
 
 static PyObject* PalMusic_get_volume(PalMusic *self, void *closure) {
-    return PyObject_GetAttrString((PyObject*)self, "_volume");
+    return PyFloat_FromDouble(self->volume);
 }
 
 static int PalMusic_set_volume(PalMusic *self, PyObject *value, void *closure) {
-    if (value == NULL) {
+    if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'volume' attribute");
         return -1;
     }
     double vol = PyFloat_AsDouble(value);
-    if (PyErr_Occurred() != NULL)
+    if (PyErr_Occurred())
         return -1;
-    PyObject_SetAttrString((PyObject*)self, "_volume", value);
+    self->volume = vol;
     SetMusicVolume(self->music, (float)vol);
     return 0;
 }
 
 static PyObject* PalMusic_get_pitch(PalMusic *self, void *closure) {
-    return PyObject_GetAttrString((PyObject*)self, "_pitch");
+    return PyFloat_FromDouble(self->pitch);
 }
 
 static int PalMusic_set_pitch(PalMusic *self, PyObject *value, void *closure) {
-    if (value == NULL) {
+    if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pitch' attribute");
         return -1;
     }
-    double vol = PyFloat_AsDouble(value);
-    if (PyErr_Occurred() != NULL)
+    double pitch = PyFloat_AsDouble(value);
+    if (PyErr_Occurred())
         return -1;
-    PyObject_SetAttrString((PyObject*)self, "_pitch", value);
-    SetMusicVolume(self->music, (float)vol);
+    self->pitch = pitch;
+    SetMusicPitch(self->music, (float)pitch);
     return 0;
 }
 
 static PyObject* PalMusic_get_pan(PalMusic *self, void *closure) {
-    return PyObject_GetAttrString((PyObject*)self, "_pan");
+    return PyFloat_FromDouble(self->pan);
 }
 
 static int PalMusic_set_pan(PalMusic *self, PyObject *value, void *closure) {
-    if (value == NULL) {
+    if (!value) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'pan' attribute");
         return -1;
     }
-    double vol = PyFloat_AsDouble(value);
-    if (PyErr_Occurred() != NULL)
+    double pan = PyFloat_AsDouble(value);
+    if (PyErr_Occurred())
         return -1;
-    PyObject_SetAttrString((PyObject*)self, "_pan", value);
-    SetMusicVolume(self->music, (float)vol);
+    self->pan = pan;
+    SetMusicPan(self->music, (float)pan);
     return 0;
 }
 
@@ -848,7 +797,7 @@ static int PalMusic_set_position(PalMusic *self, PyObject *value, void *closure)
         PyErr_SetString(PyExc_TypeError, "Cannot delete the 'position' attribute");
         return -1;
     }
-    if (PyErr_Occurred() != NULL)
+    if (PyErr_Occurred())
         return -1;
     SeekMusicStream(self->music, (float)PyFloat_AsDouble(value));
     return 0;
@@ -875,7 +824,6 @@ static int PalMusic_set_looping(PalMusic *self, PyObject *value, void *closure) 
     }
     return 0;
 }
-
 
 static PyObject* PalMusic_get_stream(PalMusic *self, void *closure) {
     PalAudioStream *stream = (PalAudioStream*)PalAudioStreamType.tp_alloc(&PalAudioStreamType, 0);
@@ -916,7 +864,8 @@ static PyTypeObject PalMusicType = {
     .tp_methods = PalMusic_methods,
     .tp_getset = PalMusic_attrs,
     .tp_init = (initproc)PalMusic_Init,
-    .tp_new = (newfunc)PalMusic_New,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_new = PyType_GenericNew,
 };
 
 static PyObject* pal_initialize(PyObject *self, PyObject *args) {
@@ -992,7 +941,7 @@ PyMODINIT_FUNC PyInit_pal(void) {
         return NULL;
 #define X(NAME) \
     Py_INCREF(&Pal##NAME##Type); \
-    if (PyModule_AddObject(m, "pal", (PyObject*)&Pal##NAME##Type) < 0) { \
+    if (PyModule_AddObject(m, #NAME, (PyObject*)&Pal##NAME##Type) < 0) { \
     Py_DECREF(&Pal##NAME##Type); \
         Py_DECREF(m); \
         return NULL; \
