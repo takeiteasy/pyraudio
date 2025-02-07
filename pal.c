@@ -339,15 +339,24 @@ static PyObject* PalAudioStream_is_playing(PalAudioStream *self, PyObject *args)
     }
 }
 
+static PyObject* PalAudioStream_update(PalAudioStream *self, PyObject *buf) {
+    Py_buffer buffer;
+    if (PyObject_GetBuffer(buf, &buffer, PyBUF_WRITABLE) == -1)
+        return NULL;
+    UpdateAudioStream(self->stream, buffer.buf, buffer.len / (self->stream.channels * sizeof(short)));
+    PyBuffer_Release(&buffer);
+    return Py_BuildValue("d", 1);
+}
+
 static PyMethodDef PalAudioStream_methods[] = {
     {"is_ready", (PyCFunction)PalAudioStream_is_ready, METH_VARARGS, "Is AudioStream ready?"},
-//    {"update", (PyCFunction)PalAudioStream_update, METH_VARARGS, "Update AudioStream buffer with new data"},
     {"play", (PyCFunction)PalAudioStream_play, METH_VARARGS, "Play a AudioStream" },
     {"stop", (PyCFunction)PalAudioStream_stop, METH_VARARGS, "Stop playing a AudioStream" },
     {"pause", (PyCFunction)PalAudioStream_pause, METH_VARARGS, "Pause a AudioStream" },
     {"resume", (PyCFunction)PalAudioStream_resume, METH_VARARGS, "Resume a paused AudioStream" },
     {"is_playing", (PyCFunction)PalAudioStream_is_playing, METH_VARARGS, "Check if a AudioStream is currently playing" },
-    {NULL, NULL, 0, NULL}
+    {"update", (PyCFunction)PalAudioStream_update, METH_VARARGS, "Update AudioStream with a new buffer"},
+    {NULL}
 };
 
 static PyObject* PalAudioStream_get_sample_rate(PalAudioStream *self, void *closure) {
@@ -514,14 +523,23 @@ static PyObject* PalSound_is_playing(PalSound *self, PyObject *args) {
     }
 }
 
+static PyObject* PalSound_update(PalSound *self, PyObject *buf) {
+    Py_buffer buffer;
+    if (PyObject_GetBuffer(buf, &buffer, PyBUF_WRITABLE) == -1)
+        return NULL;
+    UpdateSound(self->sound, buffer.buf, buffer.len / (self->sound.stream.channels * sizeof(short)));
+    PyBuffer_Release(&buffer);
+    return Py_BuildValue("d", 1);
+}
+
 static PyMethodDef PalSound_methods[] = {
     {"is_ready", (PyCFunction)PalSound_is_ready, METH_VARARGS, "Is Sound ready?"},
-//    {"update", (PyCFunction)PalSound_update, METH_VARARGS, "Update Sound buffer with new data"},
     {"play", (PyCFunction)PalSound_play, METH_VARARGS, "Play a Sound" },
     {"stop", (PyCFunction)PalSound_stop, METH_VARARGS, "Stop playing a Sound" },
     {"pause", (PyCFunction)PalSound_pause, METH_VARARGS, "Pause a Sound" },
     {"resume", (PyCFunction)PalSound_resume, METH_VARARGS, "Resume a paused Sound" },
     {"is_playing", (PyCFunction)PalSound_is_playing, METH_VARARGS, "Check if a Sound is currently playing" },
+    {"update", (PyCFunction)PalSound_update, METH_VARARGS, "Update a Sound with a new buffer" },
     {NULL, NULL, 0, NULL}
 };
 
@@ -724,15 +742,24 @@ static PyObject* PalMusic_seek(PalMusic *self, PyObject *args) {
     Py_RETURN_NONE;
 }
 
+static PyObject* PalMusic_update(PalMusic *self, PyObject *args) {
+    if (!IsMusicReady(self->music)) {
+        PyErr_SetString(PyExc_RuntimeError, "Music is not ready");
+        return NULL;
+    }
+    UpdateMusicStream(self->music);
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef PalMusic_methods[] = {
     {"is_ready", (PyCFunction)PalMusic_is_ready, METH_VARARGS, "Is Music ready?"},
-//    {"update", (PyCFunction)PalMusic_update, METH_VARARGS, "Update Music buffer with new data"},
     {"play", (PyCFunction)PalMusic_play, METH_VARARGS, "Play a Music" },
     {"stop", (PyCFunction)PalMusic_stop, METH_VARARGS, "Stop playing a Music" },
     {"pause", (PyCFunction)PalMusic_pause, METH_VARARGS, "Pause a Music" },
     {"resume", (PyCFunction)PalMusic_resume, METH_VARARGS, "Resume a paused Music" },
     {"seek", (PyCFunction)PalMusic_seek, METH_VARARGS, "Seek Music to a position (in seconds)" },
     {"is_playing", (PyCFunction)PalMusic_is_playing, METH_VARARGS, "Check if a Music is currently playing" },
+    {"update", (PyCFunction)PalMusic_update, METH_VARARGS, "Update (re-fill) Music buffers if data already processed"},
     {NULL, NULL, 0, NULL}
 };
 

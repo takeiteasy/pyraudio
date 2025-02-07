@@ -5,7 +5,7 @@
 
 ## TODO:
 
-- [ ] Implement update function for all classes
+- [X] Implement update function for all classes
 - [ ] Access to AudioStream struct from Music+Sound
 - [ ] AudioStream processor callbacks
 
