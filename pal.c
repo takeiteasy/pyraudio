@@ -599,7 +599,7 @@ static int PalSound_set_pan(PalSound *self, PyObject *value, void *closure) {
 }
 
 static PyObject* PalSound_get_stream(PalSound *self, void *closure) {
-    PalAudioStream *stream = (PyObject*)PalAudioStream.tp_alloc(&PalAudioStreamType, 0);
+    PalAudioStream *stream = (PalAudioStream*)PalAudioStreamType.tp_alloc(&PalAudioStreamType, 0);
     if (!stream)
         return PyErr_NoMemory();
     memcpy(&self->sound.stream, &stream->stream, sizeof(AudioStream));
@@ -607,7 +607,7 @@ static PyObject* PalSound_get_stream(PalSound *self, void *closure) {
 }
 
 static int PalSound_set_stream(PalSound *self, PyObject *value, void *closure) {
-    PalAudioStream *stream = (PalAudioStream*)source;
+    PalAudioStream *stream = (PalAudioStream*)value;
     if (!PyObject_TypeCheck(value, &PalAudioStreamType))
         return -1;
     memcpy(&stream->stream, &self->sound.stream, sizeof(AudioStream));
@@ -876,8 +876,9 @@ static int PalMusic_set_looping(PalMusic *self, PyObject *value, void *closure) 
     return 0;
 }
 
+
 static PyObject* PalMusic_get_stream(PalMusic *self, void *closure) {
-    PalAudioStream *stream = (PyObject*)PalAudioStream.tp_alloc(&PalAudioStreamType, 0);
+    PalAudioStream *stream = (PalAudioStream*)PalAudioStreamType.tp_alloc(&PalAudioStreamType, 0);
     if (!stream)
         return PyErr_NoMemory();
     memcpy(&self->music.stream, &stream->stream, sizeof(AudioStream));
@@ -885,7 +886,7 @@ static PyObject* PalMusic_get_stream(PalMusic *self, void *closure) {
 }
 
 static int PalMusic_set_stream(PalMusic *self, PyObject *value, void *closure) {
-    PalAudioStream *stream = (PalAudioStream*)source;
+    PalAudioStream *stream = (PalAudioStream*)value;
     if (!PyObject_TypeCheck(value, &PalAudioStreamType))
         return -1;
     memcpy(&stream->stream, &self->music.stream, sizeof(AudioStream));
