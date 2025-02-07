@@ -131,7 +131,7 @@ static PyBufferProcs PalWave_as_buffer = {
   (releasebufferproc)0,
 };
 
-static PyObject* PalWave_setpointer(PalWave *self, PyObject *original) {
+static PyObject* PalWave_update(PalWave *self, PyObject *original) {
     Py_buffer buffer;
     if (PyObject_GetBuffer(original, &buffer, PyBUF_WRITABLE) == -1)
         return NULL;
@@ -208,7 +208,7 @@ static PyMethodDef PalWave_methods[] = {
     {"copy", (PyCFunction)PalWave_copy, METH_VARARGS, "Clone a Wave object"},
     {"crop", (PyCFunction)PalWave_crop, METH_VARARGS, "Crop a Wave to defined samples range"},
     {"format", (PyCFunction)PalWave_format, METH_VARARGS, "Convert Wave data to desired format"},
-    {"from_buffer", (PyCFunction)PalWave_setpointer, METH_O, "Set memory pointer from a buffer"},
+    {"update", (PyCFunction)PalWave_update, METH_O, "Set memory pointer from a buffer"},
     {"samples", (PyCFunction)PalWave_samples, METH_VARARGS, "Load samples data from wave as a floats array"},
     {NULL, NULL, 0, NULL}
 };
@@ -239,43 +239,17 @@ static PyGetSetDef PalWave_attrs[] = {
 
 static PyTypeObject PalWaveType = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "pal.Wave",                                 /* tp_name */
-    sizeof(PalWave),                            /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)PalWave_Dealloc,                /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    &PalWave_mapping,                           /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    &PalWave_as_buffer,                         /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
-    PyDoc_STR("PalWave object"),                /* tp_doc */
-    0,                                          /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    PalWave_methods,                            /* tp_methods */
-    0,                                          /* tp_members */
-    PalWave_attrs,                              /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    (initproc)PalWave_Init,                     /* tp_init */
-    0,                                          /* tp_alloc */
-    (newfunc)PalWave_New,                       /* tp_new */
+    .tp_name = "pal.Wave",
+    .tp_basicsize = sizeof(PalWave),
+    .tp_dealloc = (destructor)PalWave_Dealloc,
+    .tp_as_mapping = &PalWave_mapping,
+    .tp_as_buffer = &PalWave_as_buffer,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = PyDoc_STR("PalWave object"),
+    .tp_methods = PalWave_methods,
+    .tp_getset = PalWave_attrs,
+    .tp_init = (initproc)PalWave_Init,
+    .tp_new = (newfunc)PalWave_New,
 };
 
 typedef struct {
@@ -397,43 +371,15 @@ static PyGetSetDef PalAudioStream_attrs[] = {
 
 static PyTypeObject PalAudioStreamType = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "pal.AudioStream",                          /* tp_name */
-    sizeof(PalAudioStream),                     /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)PalAudioStream_Dealloc,         /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
-    PyDoc_STR("PalAudioStream object"),         /* tp_doc */
-    0,                                          /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    PalAudioStream_methods,                     /* tp_methods */
-    0,                                          /* tp_members */
-    PalAudioStream_attrs,                       /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    (initproc)PalAudioStream_Init,              /* tp_init */
-    0,                                          /* tp_alloc */
-    (newfunc)PalAudioStream_New,                /* tp_new */
+    .tp_name = "pal.AudioStream",
+    .tp_basicsize = sizeof(PalAudioStream),
+    .tp_dealloc = (destructor)PalAudioStream_Dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = PyDoc_STR("PalAudioStream object"),
+    .tp_methods = PalAudioStream_methods,
+    .tp_getset = PalAudioStream_attrs,
+    .tp_init = (initproc)PalAudioStream_Init,
+    .tp_new = (newfunc)PalAudioStream_New,
 };
 
 typedef struct {
@@ -644,43 +590,16 @@ static PyGetSetDef PalSound_attrs[] = {
 
 static PyTypeObject PalSoundType = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "pal.Sound",                                /* tp_name */
-    sizeof(PalSound),                           /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)PalSound_Dealloc,               /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    &PalSound_mapping,                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
-    PyDoc_STR("PalSound object"),               /* tp_doc */
-    0,                                          /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    PalSound_methods,                           /* tp_methods */
-    0,                                          /* tp_members */
-    PalSound_attrs,                             /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    (initproc)PalSound_Init,                    /* tp_init */
-    0,                                          /* tp_alloc */
-    (newfunc)PalSound_New,                      /* tp_new */
+    .tp_name = "pal.Sound",
+    .tp_basicsize = sizeof(PalSound),
+    .tp_dealloc = (destructor)PalSound_Dealloc,
+    .tp_as_mapping = &PalSound_mapping,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = PyDoc_STR("PalSound object"),
+    .tp_methods = PalSound_methods,
+    .tp_getset = PalSound_attrs,
+    .tp_init = (initproc)PalSound_Init,
+    .tp_new = (newfunc)PalSound_New,
 };
 
 // Music, audio stream, anything longer than ~10 seconds should be streamed
@@ -924,43 +843,16 @@ static PyGetSetDef PalMusic_attrs[] = {
 
 static PyTypeObject PalMusicType = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "pal.Music",                                /* tp_name */
-    sizeof(PalMusic),                           /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)PalMusic_Dealloc,               /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    &PalMusic_mapping,                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
-    PyDoc_STR("PalMusic object"),               /* tp_doc */
-    0,                                          /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    PalMusic_methods,                           /* tp_methods */
-    0,                                          /* tp_members */
-    PalMusic_attrs,                             /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    (initproc)PalMusic_Init,                    /* tp_init */
-    0,                                          /* tp_alloc */
-    (newfunc)PalMusic_New,                      /* tp_new */
+    .tp_name = "pal.Music",
+    .tp_basicsize = sizeof(PalMusic),
+    .tp_dealloc = (destructor)PalMusic_Dealloc,
+    .tp_as_mapping = &PalMusic_mapping,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_doc = PyDoc_STR("PalMusic object"),
+    .tp_methods = PalMusic_methods,
+    .tp_getset = PalMusic_attrs,
+    .tp_init = (initproc)PalMusic_Init,
+    .tp_new = (newfunc)PalMusic_New,
 };
 
 static PyObject* pal_initialize(PyObject *self, PyObject *args) {
