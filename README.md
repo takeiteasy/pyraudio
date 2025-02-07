@@ -3,7 +3,7 @@
 > [!WARNING]
 > Work in progress
 
-> [!INFO]
+> [!NOTE]
 > `pip install pyaudiolib==0.0.1`
 
 ```python
