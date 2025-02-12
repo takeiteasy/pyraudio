@@ -1,4 +1,4 @@
-# https://github.com/takeiteasy/pal
+# https://github.com/takeiteasy/pyraudio
 # 
 # Copyright 2025 George Watson
 # 
@@ -21,23 +21,22 @@
 # THE SOFTWARE.
  
 from setuptools import setup, Extension
-import platform
-import subprocess
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="pal",
+    name="raudio",
     version="0.0.1",
     author="George Watson",
     author_email="gigolo@hotmail.co.uk",
-    description="Python Audio Library (raudio bindings)",
+    description="Raylib raudio bindings for Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/takeiteasy/pal",
-    ext_modules=[Extension("pal",
+    url="https://github.com/takeiteasy/pyraudio",
+    ext_modules=[Extension("raudio",
                            include_dirs=["raudio"],
+                           extra_compile_args=["-I."],
                            define_macros=[("RAUDIO_STANDALONE", 1),
                                           ("SUPPORT_MODULE_RAUDIO", 1),
                                           ("SUPPORT_FILEFORMAT_WAV", 1),
@@ -47,7 +46,7 @@ setup(
                                           ("SUPPORT_FILEFORMAT_FLAC", 1),
                                           ("SUPPORT_FILEFORMAT_XM", 1),
                                           ("SUPPORT_FILEFORMAT_MOD", 1)],
-                           sources=["pal.c", "raudio/raudio.c"])],
+                           sources=["pyraudio.c"])],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

@@ -3,12 +3,12 @@ requires = ["setuptools>=72.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyaudiolib"
+name = "raudio"
 version = "0.0.1"
 authors = [
   { name="George Watson", email="gigolo@hotmail.co.uk" },
 ]
-description = "Python Audio Library (raudio bindings)"
+description = "Raylib raudio bindings for Python"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -18,5 +18,5 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/takeiteasy/pal"
-Issues = "https://github.com/takeiteasy/pal/issues"
+Homepage = "https://github.com/takeiteasy/pyraudio"
+Issues = "https://github.com/takeiteasy/pyraudio/issues"
